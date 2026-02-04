@@ -1,0 +1,347 @@
+# Medical Image Quantization - Master Configuration
+# Multi-Modal Study: Chest X-ray + Brain MRI + Skin Cancer
+
+# ============================================================================
+# Dataset Configuration
+# ============================================================================
+datasets:
+  chestxray:
+    name: "COVID-19 Chest X-ray"
+    data_root: "./data/chestxray"
+    type: "classification"
+    classes: ["COVID", "Normal", "Lung_Opacity", "Viral Pneumonia"]
+    num_classes: 4
+    image_size: [224, 224]  # Resize to this
+    color_mode: "RGB"
+    modality: "X-ray"
+    
+  brainmri:
+    name: "Brain Tumor MRI"
+    data_root: "./data/chestxray"
+    type: "classification"
+    classes: ["glioma", "meningioma", "notumor", "pituitary"]
+    num_classes: 4
+    image_size: [224, 224]
+    color_mode: "RGB"
+    modality: "MRI"
+    splits: ["Training", "Testing"]
+    
+  skincancer:
+    name: "HAM10000 Skin Cancer"
+    data_root: "./data/chestxray"
+    type: "classification"
+    classes: ["akiec", "bcc", "bkl", "df", "mel", "nv", "vasc"]
+    num_classes: 7
+    image_size: [224, 224]
+    color_mode: "RGB"
+    modality: "Dermoscopy"
+    metadata_path: "./"
+
+# ============================================================================
+# Cross-Validation Configuration
+# ============================================================================
+cross_validation:
+  n_folds: 5
+  stratified: true  # Stratify by class
+  shuffle: true
+  random_state: 42
+  save_splits: true
+  split_dir: "./cv_splits"
+
+# ============================================================================
+# Data Preprocessing
+# ============================================================================
+preprocessing:
+  # Normalization
+  normalization:
+    method: "imagenet"  # "imagenet", "standard", or "minmax"
+    imagenet_mean: [0.485, 0.456, 0.406]
+    imagenet_std: [0.229, 0.224, 0.225]
+  
+  # Augmentation (training only)
+  augmentation:
+    enabled: true
+    horizontal_flip: true
+    vertical_flip: false
+    rotation_range: 15
+    width_shift_range: 0.1
+    height_shift_range: 0.1
+    zoom_range: 0.1
+    brightness_range: [0.8, 1.2]
+    
+  # Class balancing
+  class_weights: "balanced"  # or "none"
+
+# ============================================================================
+# Model Configurations
+# ============================================================================
+models:
+  # Deep Learning Models
+  deep_learning:
+    resnet18:
+      architecture: "ResNet18"
+      pretrained: true
+      freeze_backbone: false
+      dropout: 0.5
+      
+    resnet50:
+      architecture: "ResNet50"
+      pretrained: true
+      freeze_backbone: false
+      dropout: 0.5
+      
+    efficientnet_b0:
+      architecture: "EfficientNet-B0"
+      pretrained: true
+      freeze_backbone: false
+      dropout: 0.3
+      
+    mobilenet_v2:
+      architecture: "MobileNetV2"
+      pretrained: true
+      freeze_backbone: false
+      dropout: 0.4
+      
+    densenet121:
+      architecture: "DenseNet121"
+      pretrained: true
+      freeze_backbone: false
+      dropout: 0.5
+
+    convnext_tiny:
+      architecture: "convnext_tiny"
+      pretrained: true
+      dropout: 0.2
+
+    swin_tiny:
+      architecture: "swin_tiny_patch4_window7_224"
+      pretrained: true
+      dropout: 0.2
+
+    vit_base:
+      architecture: "vit_base_patch16_224"
+      pretrained: true
+      dropout: 0.1
+
+
+  
+  # Classical ML Models
+  classical_ml:
+    svm_linear:
+      type: "SVM"
+      kernel: "linear"
+      C: 1.0
+      class_weight: "balanced"
+      feature_extractor: "resnet18_pretrained"
+      
+    svm_rbf:
+      type: "SVM"
+      kernel: "rbf"
+      C: 1.0
+      gamma: "scale"
+      class_weight: "balanced"
+      feature_extractor: "resnet18_pretrained"
+      
+    random_forest:
+      type: "RandomForest"
+      n_estimators: 200
+      max_depth: 20
+      min_samples_split: 5
+      class_weight: "balanced"
+      feature_extractor: "resnet18_pretrained"
+      
+    xgboost:
+      type: "XGBoost"
+      n_estimators: 200
+      max_depth: 10
+      learning_rate: 0.1
+      feature_extractor: "resnet18_pretrained"
+      
+    knn:
+      type: "KNN"
+      n_neighbors: 5
+      weights: "distance"
+      metric: "euclidean"
+      feature_extractor: "resnet18_pretrained"
+
+# ============================================================================
+# Training Configuration
+# ============================================================================
+training:
+  # Hyperparameters
+  batch_size: 32
+  epochs: 50
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  optimizer: "adam"
+  
+  # Learning rate schedule
+  scheduler:
+    type: "cosine"  # "cosine", "step", "plateau", or "none"
+    patience: 5  # For plateau
+    factor: 0.5  # For plateau/step
+    
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 10
+    min_delta: 0.001
+    monitor: "val_accuracy"
+    
+  # Checkpointing
+  checkpoint:
+    save_best_only: true
+    monitor: "val_accuracy"
+    mode: "max"
+    
+  # Mixed precision training (for speed)
+  mixed_precision: false  # Set true if GPU supports it
+
+# ============================================================================
+# Quantization Configuration
+# ============================================================================
+quantization:
+  # Precision levels to test
+  precisions: ["fp32", "fp16", "int8_ptq", "int8_qat", "int4"]
+  
+  # Post-Training Quantization (PTQ)
+  ptq:
+    calibration_samples: 500  # Per dataset
+    calibration_method: "minmax"  # "minmax", "entropy", "percentile"
+    per_channel: true
+    symmetric: true
+    
+  # Quantization-Aware Training (QAT)
+  qat:
+    enabled: true
+    start_from_fp32: true
+    freeze_bn: false
+    qat_epochs: 20  # Additional epochs for QAT
+    
+  # Mixed precision quantization
+  mixed_precision_quant:
+    first_layer_fp32: true
+    last_layer_fp32: true
+    attention_layers_fp16: true  # If model has attention
+
+# ============================================================================
+# Evaluation Metrics
+# ============================================================================
+evaluation:
+  metrics:
+    - "accuracy"
+    - "balanced_accuracy"
+    - "precision"
+    - "recall"
+    - "f1_score"
+    - "auc_roc"
+    - "cohen_kappa"
+    
+  per_class_metrics: true
+  confusion_matrix: true
+  roc_curve: true
+  
+  # Calibration metrics
+  calibration:
+    enabled: true
+    n_bins: 15
+    ece: true  # Expected Calibration Error
+    reliability_diagram: true
+
+# ============================================================================
+# Efficiency Metrics
+# ============================================================================
+efficiency:
+  measure_model_size: true
+  measure_inference_time: true
+  measure_throughput: true
+  measure_memory: true
+  benchmark_iterations: 100
+  
+  # Hardware simulation
+  simulate_edge_device: true
+  edge_device_specs:
+    name: "Raspberry Pi 4"
+    cpu_freq: "1.5 GHz"
+    ram: "4 GB"
+
+# ============================================================================
+# Experiment Configuration
+# ============================================================================
+experiment:
+  name: "medical_quantization_multimodal"
+  description: "Multi-modal medical image quantization study with 5-fold CV"
+  
+  # Which experiments to run
+  run_deep_learning: true
+  run_classical_ml: true
+  run_quantization: true
+  run_analysis: true
+  
+  # Reproducibility
+  random_seed: 42
+  deterministic: true
+  
+  # Parallelization
+  num_workers: 4
+  pin_memory: true
+  
+  # Logging
+  logging:
+    level: "INFO"
+    save_logs: true
+    log_dir: "./logs"
+    tensorboard: true
+    wandb: false  # Set true if using Weights & Biases
+    
+  # Results
+  results_dir: "./results"
+  save_predictions: true
+  save_features: false  # Set true if want to save extracted features
+  save_models: true
+
+# ============================================================================
+# Analysis Configuration
+# ============================================================================
+analysis:
+  # Statistical tests
+  statistical_tests:
+    enabled: true
+    test_type: "wilcoxon"  # For paired comparisons across folds
+    alpha: 0.05
+    
+  # Plots to generate
+  plots:
+    - "accuracy_comparison"
+    - "model_complexity_vs_accuracy"
+    - "quantization_impact_per_modality"
+    - "cross_modality_comparison"
+    - "cv_fold_variance"
+    - "confusion_matrices"
+    - "roc_curves"
+    - "calibration_curves"
+    - "inference_time_comparison"
+    
+  # Tables to generate
+  tables:
+    - "main_results"
+    - "per_modality_results"
+    - "quantization_degradation"
+    - "classical_vs_dl_comparison"
+    - "cv_statistics"
+
+# ============================================================================
+# Paper-Specific Outputs
+# ============================================================================
+paper_outputs:
+  generate_latex_tables: true
+  generate_high_res_figures: true
+  figure_dpi: 300
+  figure_format: "pdf"  # "pdf" or "png"
+  
+  # Supplementary materials
+  generate_supplementary:
+    enabled: true
+    include_all_fold_results: true
+    include_per_class_results: true
+    include_model_architectures: true
