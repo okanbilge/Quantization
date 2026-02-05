@@ -9,7 +9,7 @@ Submitted to CHIL (Conference on Health, Inference, and Learning) 2026.
 
 ## Author
 
-Okan Bilge Ozdemir
+Okan Bilge Ozdemir, Ruowang Li
 
 ## What is included
 
